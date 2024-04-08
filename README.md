@@ -1,6 +1,8 @@
 # C++ limit order book with python visualizer
 
-- communication between the orderbook and python is done using grpc
+## Features
+- C++ build is fully automated from fetching grpc/protoc to compiling protobufs to then the final executable
+- Communication between the orderbook and python is done using grpc
 
 ## Setup
 
