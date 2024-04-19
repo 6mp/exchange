@@ -16,11 +16,6 @@
 #include <thread>
 #include <mutex>
 
-struct Level {
-    Price price;
-    Quantity_ty quantity;
-};
-
 class Orderbook {
 
     /*
@@ -33,23 +28,23 @@ class Orderbook {
      * 114 |  20
      * 115 |  10
      * BIDS
-     *
-     *
-     * matching lowest possible ask and highest bid
      */
 
     // price levels
     std::map<Price, std::deque<Order>, std::less<>> m_asks;
     std::map<Price, std::deque<Order>, std::greater<>> m_bids;
+
+    // queue to get orders in asap, orders matched off queue
     std::queue<Order> m_orders;
 
-    // callbacks for notifications
+    // order created is param
     std::function<void(Order&)> onOrderAddCallback;
+
+    // first order is the new order that got filled, second is the resting order used to fill
     std::function<void(Order&, Order&)> onOrderFillCallback;
 
-    // lock for orders
+    // thread stuff for matching and adding orders
     std::mutex m_lock;
-
     std::atomic<bool> m_stopFlag;
     std::thread m_matchingThread;
 
@@ -76,13 +71,16 @@ public:
                 order = m_orders.back();
                 m_orders.pop();
             }
+
             switch (order.getType()) {
                 case OrderType::MARKET: {
                     handleMarketOrder(order);
                     break;
                 }
                 case OrderType::LIMIT: {
-                    handleLimitOrder(order);
+                    // limit orders can be done on a separate thread
+                    std::thread j{[this, &order] { handleLimitOrder(order); }};
+                    j.detach();
                     break;
                 }
                 case OrderType::INVALID: throw std::runtime_error("invalid order type");
@@ -90,103 +88,74 @@ public:
         }
     }
 
-    auto fillAndNotify(Order& order) -> bool {
+    auto fillMarketOrder(Order& order) -> void {
         switch (order.getSide()) {
             case OrderSide::BUY: {
-                // match with lowest ask
-                auto bestAsk = m_asks.begin();
-                if (bestAsk == m_asks.end()) {
-                    return false;
+                // execute best price so top of asks
+                auto& top = m_asks.begin()->second;
+                // start filling
+                if (!processOrders(order, top)) {
+                    // no match, notify that client of that
                 }
 
-                auto& askOrders = bestAsk->second;
-                while (!order.isFilled() && !askOrders.empty()) {
-                    auto& askOrder = askOrders.front();
-
-                    order.fill(askOrder);
-
-                    if (askOrder.isFilled()) {
-                        askOrders.pop_front();
-                    }
-
-                    onOrderFillCallback(order, askOrder);
-                }
                 break;
             }
-            case OrderSide::SELL: {
-                // match with highest bid
-                auto bestBid = m_bids.begin();
-                if (bestBid == m_bids.end()) {
-                    return false;
-                }
-
-                auto& bidOrders = bestBid->second;
-                while (!order.isFilled() && !bidOrders.empty()) {
-                    auto& bidOrder = bidOrders.front();
-
-                    order.fill(bidOrder);
-
-                    if (bidOrder.isFilled()) {
-                        bidOrders.pop_front();
-                    }
-
-                    onOrderFillCallback(order, bidOrder);
-                }
-                break;
-            }
-            case OrderSide::INVALID: throw std::runtime_error("invalid order side");
-        }
-
-        return true;
-    }
-
-    template<typename Compare>
-    auto crossOrder(Order& order, std::map<Price, std::deque<Order>, Compare>& book) -> bool {
-        // match with highest bid
-        auto bestLevel = book.begin();
-        if (bestLevel == book.end()) {
-            return false;
-        }
-
-        auto& restingOrders = bestLevel->second;
-        while (!order.isFilled() && !restingOrders.empty()) {
-            auto& topOrder = book.front();
-
-            order.fill(topOrder);
-
-            if (topOrder.isFilled()) {
-                restingOrders.pop_front();
-            }
-
-            onOrderFillCallback(order, topOrder);
-        }
-        return true;
-    }
-
-    auto handleMarketOrder(Order& order) -> void { fillAndNotify(order); }
-
-    auto handleLimitOrder(Order& order) -> void {
-        if (!fillAndNotify(order)) {
-            // cant use ternary bc of templating
-            if (order.getSide() == OrderSide::BUY) {
-                addOrderToBook(order, m_bids);
-            } else {
-                addOrderToBook(order, m_asks);
-            }
+            case OrderSide::SELL: break;
+            case OrderSide::INVALID: break;
         }
     }
 
-    template<typename Compare>
-    auto addOrderToBook(Order& order, std::map<Price, std::deque<Order>, Compare>& book) -> void {
-        auto it = book.find(order.getPrice());
-        if (it == book.end()) {
-            book[order.getPrice()] = std::deque<Order>{order};
+    auto fillLimitOrder() -> void {}
+
+    auto fillAndNotify(Order& order) -> bool {
+        if (order.getSide() == OrderSide::BUY) {
+            if (m_asks.empty())
+                return false;
+            auto& askOrders = m_asks.begin()->second;
+            auto askPrice = m_asks.begin()->first;
+
+            // Only fill if the buy order price is >= lowest ask
+            if (order.getPrice() >= askPrice) {
+                return processOrders(order, askOrders);
+            }
+        } else if (order.getSide() == OrderSide::SELL) {
+            if (m_bids.empty())
+                return false;
+            auto& bidOrders = m_bids.begin()->second;
+            auto bidPrice = m_bids.begin()->first;
+
+            // Only fill if the sell order price is <= highest bid
+            if (order.getPrice() <= bidPrice) {
+                return processOrders(order, bidOrders);
+            }
         } else {
-            it->second.push_back(order);
+            throw std::runtime_error("invalid order side");
         }
+        return false;
     }
 
-    auto requestStop() -> void { m_stopFlag = true; }
+    bool processOrders(Order& order, std::deque<Order>& orders) {
+        if (orders.empty())
+            return false;
+
+        while (!order.isFilled() && !orders.empty()) {
+            auto& matchOrder = orders.front();
+            order.fill(matchOrder);
+            if (matchOrder.isFilled()) {
+                orders.pop_front();
+            }
+            onOrderFillCallback(order, matchOrder);
+        }
+        return true;
+    }
+
+    void handleMarketOrder(Order& order) { fillAndNotify(order); }
+
+    void handleLimitOrder(Order& order) {
+        if (!fillAndNotify(order)) {}
+    }
+
+    void requestStop() { m_stopFlag = true; }
 };
 
 #endif    // ORDERBOOK_ORDERBOOK_HPP

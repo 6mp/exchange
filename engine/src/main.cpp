@@ -38,7 +38,7 @@ int main() {
       server->Wait();*/
 
     auto orderFillCallback = [](Order& placedOrder, Order& restingOrder) {
-
+        std::cout << "filled " << placedOrder.getFilledQuantity() << " \n";
     };
 
     auto orderAddCallback = [](Order& placedOrder) {
