@@ -89,11 +89,12 @@ auto Orderbook::matchMarketOrder(Order& order, std::map<Price, std::deque<Order>
 
 template<typename Comp>
 void Orderbook::matchLimitOrder(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) {
-
     // buy limit order if comp is less, find first price that is less than or equal to order price
     if constexpr (std::is_same_v<Comp, std::less<>>) {
         // priceMap is m_Asks
-        for (auto it = priceMap.begin(); it != priceMap.end() && order.getPrice() >= it->first && !order.isFilled();) {
+        auto it = priceMap.lower_bound(order.getPrice());
+
+        while (it != priceMap.end() && !order.isFilled()) {
             processOrder(order, it->second);
             if (it->second.empty()) {
                 // If no orders left at this price, remove the price level
@@ -109,15 +110,16 @@ void Orderbook::matchLimitOrder(Order& order, std::map<Price, std::deque<Order>,
             onOrderAddedToBook(order);
         }
 
-        // sell limit order if comp is greater, find first price that is greater than or equal to order price
+    // sell limit order if comp is greater, find first price that is greater than or equal to order price
     } else if constexpr (std::is_same_v<Comp, std::greater<>>) {
-        for (auto it = priceMap.begin(); it != priceMap.end() && order.getPrice() <= it->first && !order.isFilled();) {
+        auto it = priceMap.lower_bound(order.getPrice());
+
+        while (it != priceMap.begin() && !order.isFilled()) {
+            --it;
             processOrder(order, it->second);
             if (it->second.empty()) {
                 // If no orders left at this price, remove the price level
                 it = priceMap.erase(it);
-            } else {
-                ++it;
             }
         }
 
@@ -128,6 +130,8 @@ void Orderbook::matchLimitOrder(Order& order, std::map<Price, std::deque<Order>,
         }
     }
 }
+
+
 
 void Orderbook::requestStop() {
     m_stopFlag = true;
