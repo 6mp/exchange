@@ -24,6 +24,18 @@ class Orderbook {
     std::function<void(const Order&)> onOrderKill;
 
     // price levels and order queue
+
+    /*
+     * ASKS
+     * 115 |  10
+     * 114 |  20
+     * 113 |  30
+     * ---------
+     * 113 |  30
+     * 114 |  20
+     * 115 |  10
+     * BIDS
+     */
     std::map<Price, std::deque<Order>, std::less<>> m_asks;
     std::map<Price, std::deque<Order>, std::greater<>> m_bids;
     std::queue<Order> m_orders;
@@ -52,10 +64,10 @@ public:
     void fillLimitOrder(Order& order);
 
     template<typename Comp>
-    auto fillShit(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) -> void;
+    auto matchMarketOrder(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) -> void;
 
     template<typename Comp>
-    auto fillLimitShit(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) -> void;
+    auto matchLimitOrder(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) -> void;
 
     bool processOrder(Order& order, std::deque<Order>& orders) const;
 

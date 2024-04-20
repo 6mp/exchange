@@ -22,11 +22,10 @@ public:
         : integral(INVALID_PRICE)
         , fractional(INVALID_PRICE) {}
 
-    constexpr Price(double price) {
-        double integralOut;
-        fractional = std::modf(price, &integralOut) * SCALAR;
-        integral = std::trunc(integralOut);
-    }
+    constexpr Price(float price)
+        : integral(static_cast<std::int64_t>(price))
+        , fractional(static_cast<std::uint64_t>((price - integral) * SCALAR)) {}
+
 
     constexpr Price(const std::uint64_t integral, const std::uint64_t fractional)
         : integral(integral)
@@ -50,5 +49,12 @@ public:
         return str;
     }
 };
+
+namespace {
+    static_assert(Price{10.1} > Price{10.0});
+    static_assert(Price{10.0} < Price{10.1});
+    static_assert(Price{9, 120} < Price{10, 0});
+    static_assert(Price{10, 0} > Price{9, 120});
+}    // namespace
 
 #endif    // ORDERBOOK_PRICE_HPP

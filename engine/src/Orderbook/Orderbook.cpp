@@ -52,16 +52,16 @@ void Orderbook::matchingThread() {
 
 void Orderbook::fillMarketOrder(Order& order) {
     switch (order.getSide()) {
-        case OrderSide::BUY: fillShit(order, m_asks); break;
-        case OrderSide::SELL: fillShit(order, m_bids); break;
+        case OrderSide::BUY: matchMarketOrder(order, m_asks); break;
+        case OrderSide::SELL: matchMarketOrder(order, m_bids); break;
         case OrderSide::INVALID: break;
     }
 }
 
 void Orderbook::fillLimitOrder(Order& order) {
     switch (order.getSide()) {
-        case OrderSide::BUY: fillLimitShit(order, m_asks); break;
-        case OrderSide::SELL: fillLimitShit(order, m_bids); break;
+        case OrderSide::BUY: matchLimitOrder(order, m_asks); break;
+        case OrderSide::SELL: matchLimitOrder(order, m_bids); break;
         case OrderSide::INVALID: break;
     }
 }
@@ -78,7 +78,7 @@ bool Orderbook::processOrder(Order& order, std::deque<Order>& orders) const {
 }
 
 template<typename Comp>
-auto Orderbook::fillShit(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) -> void {
+auto Orderbook::matchMarketOrder(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) -> void {
     for (auto it = priceMap.begin(); it != priceMap.end() && !order.isFilled(); ++it) {
         processOrder(order, it->second);
     }
@@ -88,21 +88,42 @@ auto Orderbook::fillShit(Order& order, std::map<Price, std::deque<Order>, Comp>&
 }
 
 template<typename Comp>
-auto Orderbook::fillLimitShit(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) -> void {
-    auto it = priceMap.lower_bound(order.getPrice());
-    while (it != priceMap.end() && !order.isFilled() && Comp()(order.getPrice(), it->first)) {
-        processOrder(order, it->second);
-        if (it->second.empty())
-            priceMap.erase(it++);
-        else
-            ++it;
-    }
-    if (!order.isFilled()) {
-        if constexpr (std::is_same_v<Comp, std::greater<>>) {
-            m_asks[order.getPrice()].push_back(order);
-        } else if constexpr (std::is_same_v<Comp, std::less<>>) {
-            m_bids[order.getPrice()].push_back(order);
+void Orderbook::matchLimitOrder(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) {
+    if (order.getSide() == OrderSide::BUY) {
+        // Handle buy limit orders, iterate from lowest price
+        for (auto it = m_asks.begin(); it != m_asks.end() && order.getPrice() >= it->first && !order.isFilled();) {
+            processOrder(order, it->second);
+            if (it->second.empty()) {
+                // If no orders left at this price, remove the price level
+                it = m_asks.erase(it);
+            } else {
+                ++it;
+            }
         }
+    } else if (order.getSide() == OrderSide::SELL) {
+        // Handle sell limit orders, iterate from highest price
+        for (auto it = m_bids.begin(); it != m_bids.end() && order.getPrice() <= it->first && !order.isFilled();) {
+            processOrder(order, it->second);
+            if (it->second.empty()) {
+                // If no orders left at this price, remove the price level
+                it = m_bids.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    if (!order.isFilled()) {
+        // If the order is not fully filled, add it to the book
+
+        if (order.getSide() == OrderSide::BUY) {
+            m_bids[order.getPrice()].push_back(order);
+        } else if (order.getSide() == OrderSide::SELL) {
+            m_asks[order.getPrice()].push_back(order);
+        } else {
+            throw std::runtime_error("Invalid order side");
+        }
+
         onOrderAddedToBook(order);
     }
 }
