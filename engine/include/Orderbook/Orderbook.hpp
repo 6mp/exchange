@@ -172,7 +172,7 @@ public:
                     if (levelPrice > order.getPrice()) {
                         // push onto book and exit
                         m_asks[order.getPrice()].push_back(order);
-                        limitOrderAddCallback(order;
+                        limitOrderAddCallback(order);
                         return;
                     }
 
