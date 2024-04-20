@@ -74,12 +74,12 @@ public:
 
             switch (order.getType()) {
                 case OrderType::MARKET: {
-                    handleMarketOrder(order);
+                    fillMarketOrder(order);
                     break;
                 }
                 case OrderType::LIMIT: {
                     // limit orders can be done on a separate thread
-                    std::thread j{[this, &order] { handleLimitOrder(order); }};
+                    std::thread j{[this, &order] { fillLimitOrder(order); }};
                     j.detach();
                     break;
                 }
@@ -90,51 +90,90 @@ public:
 
     auto fillMarketOrder(Order& order) -> void {
         switch (order.getSide()) {
+            // execute best price so top of bids or bottom of asks
             case OrderSide::BUY: {
-                // execute best price so top of asks
-                auto& top = m_asks.begin()->second;
-                // start filling
-                if (!processOrders(order, top)) {
-                    // no match, notify that client of that
+                auto currentLevel = m_asks.begin();
+                while (!order.isFilled()) {
+                    auto& restingOrders = currentLevel->second;
+                    processOrder(order, restingOrders);
+                    ++currentLevel;
                 }
-
                 break;
             }
-            case OrderSide::SELL: break;
+            case OrderSide::SELL: {
+                auto currentLevel = m_bids.begin();
+                while (!order.isFilled()) {
+                    auto& restingOrders = currentLevel->second;
+                    processOrder(order, restingOrders);
+                    ++currentLevel;
+                }
+                break;
+            }
+
             case OrderSide::INVALID: break;
         }
     }
 
-    auto fillLimitOrder() -> void {}
+    auto fillLimitOrder(Order& order) -> void {
+        switch (order.getSide()) {
+            case OrderSide::BUY: {
+                // find first level where prices >= order price
+                auto matchingLevel = std::find_if(m_asks.begin(), m_asks.end(), [&order](const auto& first) {
+                    return first.first >= order.getPrice();
+                });
 
-    auto fillAndNotify(Order& order) -> bool {
-        if (order.getSide() == OrderSide::BUY) {
-            if (m_asks.empty())
-                return false;
-            auto& askOrders = m_asks.begin()->second;
-            auto askPrice = m_asks.begin()->first;
+                // if its the end this isnt getting matched so push it into the book
+                if (matchingLevel == m_asks.end()) {
+                    m_bids[order.getPrice()].push_back(order);
+                }
 
-            // Only fill if the buy order price is >= lowest ask
-            if (order.getPrice() >= askPrice) {
-                return processOrders(order, askOrders);
+                // otherwise while order is not filled keep pushing or push onto book when no more orders
+                auto& [levelPrice, levelOrders] = *matchingLevel;
+                while (!order.isFilled()) {
+                    if (levelPrice < order.getPrice()) {
+                        // push onto book and exit
+                        m_bids[order.getPrice()].push_back(order);
+                        return;
+                    }
+
+                    processOrder(order, levelOrders);
+                    ++matchingLevel;
+                }
+
+                break;
             }
-        } else if (order.getSide() == OrderSide::SELL) {
-            if (m_bids.empty())
-                return false;
-            auto& bidOrders = m_bids.begin()->second;
-            auto bidPrice = m_bids.begin()->first;
+            case OrderSide::SELL: {
+                // find first level where prices <= order price
+                auto matchingLevel = std::find_if(m_bids.begin(), m_bids.end(), [&order](const auto& first) {
+                    return first.first <= order.getPrice();
+                });
 
-            // Only fill if the sell order price is <= highest bid
-            if (order.getPrice() <= bidPrice) {
-                return processOrders(order, bidOrders);
+                // if its the end this isnt getting matched so push it into the book
+                if (matchingLevel == m_bids.end()) {
+                    m_asks[order.getPrice()].push_back(order);
+                }
+
+                // otherwise while order is not filled keep pushing or push onto book when no more orders
+                auto& [levelPrice, levelOrders] = *matchingLevel;
+                while (!order.isFilled()) {
+                    if (levelPrice > order.getPrice()) {
+                        // push onto book and exit
+                        m_asks[order.getPrice()].push_back(order);
+                        return;
+                    }
+
+                    processOrder(order, levelOrders);
+                    ++matchingLevel;
+                }
+
+                break;
             }
-        } else {
-            throw std::runtime_error("invalid order side");
+
+            case OrderSide::INVALID: break;
         }
-        return false;
     }
 
-    bool processOrders(Order& order, std::deque<Order>& orders) {
+    bool processOrder(Order& order, std::deque<Order>& orders) {
         if (orders.empty())
             return false;
 
@@ -147,12 +186,6 @@ public:
             onOrderFillCallback(order, matchOrder);
         }
         return true;
-    }
-
-    void handleMarketOrder(Order& order) { fillAndNotify(order); }
-
-    void handleLimitOrder(Order& order) {
-        if (!fillAndNotify(order)) {}
     }
 
     void requestStop() { m_stopFlag = true; }
