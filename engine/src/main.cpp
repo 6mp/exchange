@@ -38,30 +38,31 @@ int main() {
       server->Wait();*/
 
     auto orderFillCallback = [](const Order& placedOrder, const Order& restingOrder) {
-        std::cout << "order id " << placedOrder.getId() << " filled resting order id " << restingOrder.getId() << "\n";
+        fmt::print("FILL: {} => {}\n", placedOrder, restingOrder);
     };
 
     auto orderQueudCallback = [](const Order& queuedOrder) {
-        std::cout << "queued order with id " << queuedOrder.getId() << "\n";
+       fmt::print("QUEUED: {}\n", queuedOrder);
     };
 
     auto orderKillCallback = [](const Order& killedOrder) {
-        std::cout << "killed order with id " << killedOrder.getId() << "\n";
+       fmt::print("KILLED: {}\n", killedOrder);
     };
 
     auto orderAddToBookCallback = [](const Order& addedOrder) {
-        std::cout << "added order to book with id " << addedOrder.getId() << "\n";
+       fmt::print("ADDED: {}\n", addedOrder);
     };
 
     static Orderbook book{orderQueudCallback, orderFillCallback, orderAddToBookCallback, orderKillCallback};
 
     std::atexit(+[] { book.requestStop(); });
 
-
-
     // add limit to book
-    const auto test = Order{1, 10.0, 1, OrderSide::BUY};
-    book.addOrder(test);
+    const auto test0 = Order{0, 9.0, 1, OrderSide::BUY};
+    book.addOrder(test0);
+
+    const auto test1 = Order{1, 10.0, 1, OrderSide::BUY};
+    book.addOrder(test1);
 
     const auto test2 = Order{2, 11.0, 1, OrderSide::BUY};
     book.addOrder(test2);
@@ -69,19 +70,12 @@ int main() {
     const auto test3 = Order{3, 12.0, 1, OrderSide::BUY};
     book.addOrder(test3);
 
-    /*
-    // add market to book that should fill the limit
-    const auto test2 = Order{2, OrderSide::SELL, 1};
-    book.addOrder(test2);
-    */
-
-    // add another limit on the other side that will fill the resting order
-    const auto test4 = Order{4, 9.0, 1, OrderSide::SELL};
-    book.addOrder(test4);
-
     // fill it
-    const auto test5 = Order{5, OrderSide::SELL, 1};
+    const auto test5 = Order{5, OrderSide::SELL, 6};
     book.addOrder(test5);
+
+    const auto test6 = Order{6, 10.0, 3, OrderSide::SELL};
+    book.addOrder(test6);
 
     // spin
     while (true) {

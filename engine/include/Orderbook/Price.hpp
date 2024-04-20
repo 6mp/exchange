@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <string>
 #include <cmath>
+#include <fmt/format.h>
 
 class Price {
     static constexpr auto SCALAR = 10000;
@@ -43,10 +44,8 @@ public:
         return fractional <=> rhs.fractional;
     }
 
-    explicit operator std::string() const {
-        // rvo'd, should use fmt or std::format instead but compiler is not u2d
-        std::string str = std::to_string(integral) + "." + std::to_string(fractional);
-        return str;
+    explicit operator std::string() const  {
+        return fmt::format("{}.{}", integral, fractional);
     }
 };
 

@@ -11,8 +11,8 @@
 using OrderId_ty = std::uint64_t;
 using Quantity_ty = std::uint64_t;
 
-enum class OrderSide { BUY, SELL, INVALID };
-enum class OrderType { LIMIT, MARKET, INVALID };
+enum class OrderSide : uint8_t { BUY, SELL, INVALID };
+enum class OrderType : uint8_t { LIMIT, MARKET, INVALID };
 
 class Order {
     Price m_price;
@@ -26,7 +26,11 @@ public:
     Order() = default;
 
     Order(
-        const OrderId_ty id, const Price price, const Quantity_ty quantity, const OrderSide side, const OrderType type = OrderType::LIMIT)
+        const OrderId_ty id,
+        const Price price,
+        const Quantity_ty quantity,
+        const OrderSide side,
+        const OrderType type = OrderType::LIMIT)
         : m_price(price)
         , m_initQuantity(quantity)
         , m_remainingQuantity(quantity)
@@ -37,7 +41,7 @@ public:
     Order(const OrderId_ty orderId, const OrderSide side, const Quantity_ty quantity)
         : Order(orderId, Price::INVALID_PRICE, quantity, side, OrderType::MARKET) {}
 
-    [[nodiscard]] auto getPrice() -> Price& { return m_price; }
+    [[nodiscard]] auto getPrice() const -> Price { return m_price; }
     [[nodiscard]] auto getType() const -> OrderType { return m_type; }
     [[nodiscard]] auto getId() const -> OrderId_ty { return m_id; }
     [[nodiscard]] auto getSide() const -> OrderSide { return m_side; }
@@ -58,6 +62,38 @@ public:
         const auto quantity = std::min(m_remainingQuantity, restingOrder.getRemainingQuantity());
         fill(quantity);
         restingOrder.fill(quantity);
+    }
+};
+
+template<>
+struct fmt::formatter<Order> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+
+    template<typename FormatContext>
+    auto format(const Order& p, FormatContext& ctx) const {
+        static const char* sides[] = {"BUY", "SELL", "INVALID"};
+        static const char* types[] = {"LIMIT", "MARKET", "INVALID"};
+
+        if (p.getType() == OrderType::MARKET) {
+            return format_to(
+                ctx.out(),
+                "{}:{}:(id:{}) => quantity: {}, remaining: {}",
+                types[1],
+                sides[static_cast<int>(p.getSide())],
+                p.getId(),
+                p.getInitialQuantity(),
+                p.getRemainingQuantity());
+        }
+
+        return format_to(
+            ctx.out(),
+            "{}:{}:(id:{}) => price: {}, quantity: {}, remaining: {}",
+            types[static_cast<int>(p.getType())],
+            sides[static_cast<int>(p.getSide())],
+            p.getId(),
+            static_cast<std::string>(p.getPrice()),
+            p.getInitialQuantity(),
+            p.getRemainingQuantity());
     }
 };
 #endif    // ORDERBOOK_ORDER_HPP

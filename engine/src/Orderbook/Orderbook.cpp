@@ -25,8 +25,8 @@ auto Orderbook::addOrder(const Order& order) -> void {
         std::scoped_lock lock{m_lock};
         m_orders.push(order);
     }
-    m_condVar.notify_one();
     onOrderQueued(order);
+    m_condVar.notify_one();
 }
 
 void Orderbook::matchingThread() {
