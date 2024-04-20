@@ -9,9 +9,14 @@
 
 class Orderbook {
     // callbacks
+
+    // order in queue
     std::function<void(Order&)> onOrderAdd;
+    // first order is the one that was placed, second is the one that was resting
     std::function<void(Order&, Order&)> onOrderFill;
+    // order that was added to the book
     std::function<void(Order&)> onOrderAddedToBook;
+    // order that was killed
     std::function<void(Order&)> onOrderKill;
 
     // price levels and order queue
