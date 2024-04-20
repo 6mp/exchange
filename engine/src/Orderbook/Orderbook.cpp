@@ -89,42 +89,43 @@ auto Orderbook::matchMarketOrder(Order& order, std::map<Price, std::deque<Order>
 
 template<typename Comp>
 void Orderbook::matchLimitOrder(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) {
-    if (order.getSide() == OrderSide::BUY) {
-        // Handle buy limit orders, iterate from lowest price
-        for (auto it = m_asks.begin(); it != m_asks.end() && order.getPrice() >= it->first && !order.isFilled();) {
+
+    // buy limit order if comp is less, find first price that is less than or equal to order price
+    if constexpr (std::is_same_v<Comp, std::less<>>) {
+        // priceMap is m_Asks
+        for (auto it = priceMap.begin(); it != priceMap.end() && order.getPrice() >= it->first && !order.isFilled();) {
             processOrder(order, it->second);
             if (it->second.empty()) {
                 // If no orders left at this price, remove the price level
-                it = m_asks.erase(it);
+                it = priceMap.erase(it);
             } else {
                 ++it;
             }
         }
-    } else if (order.getSide() == OrderSide::SELL) {
-        // Handle sell limit orders, iterate from highest price
-        for (auto it = m_bids.begin(); it != m_bids.end() && order.getPrice() <= it->first && !order.isFilled();) {
-            processOrder(order, it->second);
-            if (it->second.empty()) {
-                // If no orders left at this price, remove the price level
-                it = m_bids.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
 
-    if (!order.isFilled()) {
-        // If the order is not fully filled, add it to the book
-
-        if (order.getSide() == OrderSide::BUY) {
+        if (!order.isFilled()) {
+            // If the order is not fully filled, add it to the book
             m_bids[order.getPrice()].push_back(order);
-        } else if (order.getSide() == OrderSide::SELL) {
-            m_asks[order.getPrice()].push_back(order);
-        } else {
-            throw std::runtime_error("Invalid order side");
+            onOrderAddedToBook(order);
         }
 
-        onOrderAddedToBook(order);
+        // sell limit order if comp is greater, find first price that is greater than or equal to order price
+    } else if constexpr (std::is_same_v<Comp, std::greater<>>) {
+        for (auto it = priceMap.begin(); it != priceMap.end() && order.getPrice() <= it->first && !order.isFilled();) {
+            processOrder(order, it->second);
+            if (it->second.empty()) {
+                // If no orders left at this price, remove the price level
+                it = priceMap.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
+        if (!order.isFilled()) {
+            // If the order is not fully filled, add it to the book
+            m_asks[order.getPrice()].push_back(order);
+            onOrderAddedToBook(order);
+        }
     }
 }
 
