@@ -4,6 +4,7 @@
 
 #include "Orderbook/Orderbook.hpp"
 
+#include <iostream>
 #include <mutex>
 
 Orderbook::Orderbook(
@@ -89,15 +90,26 @@ auto Orderbook::matchMarketOrder(Order& order, std::map<Price, std::deque<Order>
 
 template<typename Comp>
 void Orderbook::matchLimitOrder(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) {
-    // buy limit order if comp is less, find first price that is less than or equal to order price
-    if constexpr (std::is_same_v<Comp, std::less<>>) {
-        // priceMap is m_Asks
+    if constexpr (std::is_same_v<Comp, std::less<>>) {       // Handling buy orders
+         // Finding the lowest price at or below the order price
         auto it = priceMap.lower_bound(order.getPrice());
+
+        if (it != priceMap.end() && it->first > order.getPrice()) {
+            // If the found price is higher than the order price, no matching order, so step back
+            if (it != priceMap.begin()) {
+                --it;
+            } else {
+                // All existing prices are higher, no potential matches
+                m_bids[order.getPrice()].push_back(order);
+                onOrderAddedToBook(order);
+                return;
+            }
+        }
 
         while (it != priceMap.end() && !order.isFilled()) {
             processOrder(order, it->second);
             if (it->second.empty()) {
-                // If no orders left at this price, remove the price level
+                // Remove the price level if no orders are left
                 it = priceMap.erase(it);
             } else {
                 ++it;
@@ -105,33 +117,43 @@ void Orderbook::matchLimitOrder(Order& order, std::map<Price, std::deque<Order>,
         }
 
         if (!order.isFilled()) {
-            // If the order is not fully filled, add it to the book
             m_bids[order.getPrice()].push_back(order);
             onOrderAddedToBook(order);
         }
-
-    // sell limit order if comp is greater, find first price that is greater than or equal to order price
-    } else if constexpr (std::is_same_v<Comp, std::greater<>>) {
+    } else if constexpr (std::is_same_v<Comp, std::greater<>>) {    // Handling sell orders
+        // Finding the highest price at or above the order price
         auto it = priceMap.lower_bound(order.getPrice());
 
-        while (it != priceMap.begin() && !order.isFilled()) {
+        if (it == priceMap.begin() || (it != priceMap.end() && it->first < order.getPrice())) {
+            // If the lowest price in the map is still below the order price, go to the end
+            m_asks[order.getPrice()].push_back(order);
+            onOrderAddedToBook(order);
+            return;
+        }
+
+        // Correct initial position if pointing beyond the first eligible price
+        if (it != priceMap.begin() && (it == priceMap.end() || it->first > order.getPrice())) {
             --it;
+        }
+
+        while (it != priceMap.begin() && !order.isFilled()) {
             processOrder(order, it->second);
             if (it->second.empty()) {
-                // If no orders left at this price, remove the price level
                 it = priceMap.erase(it);
+                if (it != priceMap.begin()) {
+                    --it;    // Ensure iterator does not become invalid after erasure
+                }
+            } else {
+                --it;    // Move to the next lower price
             }
         }
 
         if (!order.isFilled()) {
-            // If the order is not fully filled, add it to the book
             m_asks[order.getPrice()].push_back(order);
             onOrderAddedToBook(order);
         }
     }
 }
-
-
 
 void Orderbook::requestStop() {
     m_stopFlag = true;

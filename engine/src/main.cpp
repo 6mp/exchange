@@ -80,7 +80,7 @@ int main() {
     book.addOrder(test4);
 
     // fill it
-    const auto test5 = Order{5, OrderSide::BUY, 1};
+    const auto test5 = Order{5, OrderSide::SELL, 1};
     book.addOrder(test5);
 
     // spin
