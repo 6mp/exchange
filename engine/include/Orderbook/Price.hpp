@@ -25,14 +25,14 @@ public:
         : integral(static_cast<std::uint64_t>(price))
         , fractional(static_cast<std::uint64_t>((price - integral) * SCALAR)) {}
 
-    constexpr Price(std::uint64_t integral, std::uint64_t fractional)
+    constexpr Price(const std::uint64_t integral, const std::uint64_t fractional)
         : integral(integral)
         , fractional(fractional) {}
 
     [[nodiscard]] constexpr auto getIntegral() const -> uint64_t { return integral; }
     [[nodiscard]] constexpr auto getFractional() const -> uint64_t { return fractional; }
 
-    constexpr operator float() const { return integral + fractional / SCALAR; }
+    constexpr explicit operator float() const { return integral + fractional / SCALAR; }
 
     constexpr auto operator<=>(const Price& rhs) const {
         if (integral != rhs.integral) {
@@ -41,10 +41,9 @@ public:
         return fractional <=> rhs.fractional;
     }
 
-    operator std::string() const {
+    explicit operator std::string() const {
         // rvo'd, should use fmt or std::format instead but compiler is not u2d
-        std::string str;
-        str = std::to_string(integral) + "." + std::to_string(fractional);
+        std::string str = std::to_string(integral) + "." + std::to_string(fractional);
         return str;
     }
 };

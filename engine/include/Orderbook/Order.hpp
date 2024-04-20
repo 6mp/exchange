@@ -25,15 +25,16 @@ class Order {
 public:
     Order() = default;
 
-    Order(OrderId_ty id, Price price, Quantity_ty quantity, OrderSide side, OrderType type)
-        : m_id(id)
-        , m_price(price)
+    Order(
+        const OrderId_ty id, const Price price, const Quantity_ty quantity, const OrderSide side, const OrderType type)
+        : m_price(price)
         , m_initQuantity(quantity)
         , m_remainingQuantity(quantity)
+        , m_id(id)
         , m_side(side)
         , m_type(type) {}
 
-    Order(OrderId_ty orderId, OrderSide side, Quantity_ty quantity)
+    Order(const OrderId_ty orderId, const OrderSide side, const Quantity_ty quantity)
         : Order(orderId, Price::INVALID_PRICE, quantity, side, OrderType::MARKET) {}
 
     [[nodiscard]] auto getPrice() -> Price& { return m_price; }
@@ -45,7 +46,7 @@ public:
     [[nodiscard]] auto getFilledQuantity() const -> Quantity_ty { return m_initQuantity - m_remainingQuantity; }
     [[nodiscard]] auto isFilled() const -> bool { return m_remainingQuantity == 0; }
 
-    auto fill(Quantity_ty quantity) -> void {
+    auto fill(const Quantity_ty quantity) -> void {
         if (quantity > m_remainingQuantity) {
             throw std::runtime_error("Cannot fill more than remaining quantity");
         }
@@ -53,10 +54,10 @@ public:
         m_remainingQuantity -= quantity;
     }
 
-    auto fill(Order& order) -> void {
-        auto quantity = std::min(m_remainingQuantity, order.getRemainingQuantity());
+    auto fill(Order& restingOrder) -> void {
+        const auto quantity = std::min(m_remainingQuantity, restingOrder.getRemainingQuantity());
         fill(quantity);
-        order.fill(quantity);
+        restingOrder.fill(quantity);
     }
 };
 #endif    // ORDERBOOK_ORDER_HPP
