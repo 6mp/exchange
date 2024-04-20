@@ -43,6 +43,12 @@ class Orderbook {
     // first order is the new order that got filled, second is the resting order used to fill
     std::function<void(Order&, Order&)> onOrderFillCallback;
 
+    // limit order added to book callback
+    std::function<void(Order&)> limitOrderAddCallback;
+
+    // market order failed to fill callback, (low liquidity)
+    std::function<void(Order&)> marketOrderFailCallback;
+
     // thread stuff for matching and adding orders
     std::mutex m_lock;
     std::atomic<bool> m_stopFlag;
@@ -93,20 +99,24 @@ public:
             // execute best price so top of bids or bottom of asks
             case OrderSide::BUY: {
                 auto currentLevel = m_asks.begin();
-                while (!order.isFilled()) {
+                while (!order.isFilled() && currentLevel != m_asks.end()) {
                     auto& restingOrders = currentLevel->second;
                     processOrder(order, restingOrders);
                     ++currentLevel;
                 }
+
+                marketOrderFailCallback(order);
                 break;
             }
             case OrderSide::SELL: {
                 auto currentLevel = m_bids.begin();
-                while (!order.isFilled()) {
+                while (!order.isFilled() && currentLevel != m_bids.end()) {
                     auto& restingOrders = currentLevel->second;
                     processOrder(order, restingOrders);
                     ++currentLevel;
                 }
+
+                marketOrderFailCallback(order);
                 break;
             }
 
@@ -125,6 +135,7 @@ public:
                 // if its the end this isnt getting matched so push it into the book
                 if (matchingLevel == m_asks.end()) {
                     m_bids[order.getPrice()].push_back(order);
+                    limitOrderAddCallback(order);
                 }
 
                 // otherwise while order is not filled keep pushing or push onto book when no more orders
@@ -133,6 +144,7 @@ public:
                     if (levelPrice < order.getPrice()) {
                         // push onto book and exit
                         m_bids[order.getPrice()].push_back(order);
+                        limitOrderAddCallback(order);
                         return;
                     }
 
@@ -151,6 +163,7 @@ public:
                 // if its the end this isnt getting matched so push it into the book
                 if (matchingLevel == m_bids.end()) {
                     m_asks[order.getPrice()].push_back(order);
+                    limitOrderAddCallback(order);
                 }
 
                 // otherwise while order is not filled keep pushing or push onto book when no more orders
@@ -159,6 +172,7 @@ public:
                     if (levelPrice > order.getPrice()) {
                         // push onto book and exit
                         m_asks[order.getPrice()].push_back(order);
+                        limitOrderAddCallback(order;
                         return;
                     }
 
