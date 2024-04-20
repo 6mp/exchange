@@ -1,6 +1,9 @@
 #ifndef ORDERBOOK_ORDERBOOK_HPP
 #define ORDERBOOK_ORDERBOOK_HPP
 
+// interesting
+// https://medium.com/@amitava.webwork/designing-low-latency-high-performance-order-matching-engine-a07bd58594f4
+
 #include "Order.hpp"
 
 #include <map>
@@ -9,8 +12,6 @@
 
 class Orderbook {
     // callbacks
-
-
     using callback_order_ty = std::add_const<Order>&;
 
     // order in queue

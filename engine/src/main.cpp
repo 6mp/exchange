@@ -38,11 +38,11 @@ int main() {
       server->Wait();*/
 
     auto orderFillCallback = [](const Order& placedOrder, const Order& restingOrder) {
-        std::cout << "filled " << placedOrder.getFilledQuantity() << " \n";
+        std::cout << "order id " << placedOrder.getId() << " filled resting order id " << restingOrder.getId() << "\n";
     };
 
     auto orderQueudCallback = [](const Order& queuedOrder) {
-        std::cout << "placed order with id " << queuedOrder.getId() << "\n";
+        std::cout << "queued order with id " << queuedOrder.getId() << "\n";
     };
 
     auto orderKillCallback = [](const Order& killedOrder) {
@@ -57,5 +57,24 @@ int main() {
 
     std::atexit(+[] { book.requestStop(); });
 
-    while (true) {}
+    // add limit to book
+    Order test = Order{1, 10.0, 1, OrderSide::BUY};
+    book.addOrder(test);
+
+    // add market to book that should fill the limit
+    Order test2 = Order{2, OrderSide::SELL, 1};
+    book.addOrder(test2);
+
+    // add another limit on the other ide
+    Order test3 = Order{3, 10.0, 1, OrderSide::SELL};
+    book.addOrder(test3);
+
+    // fill it
+    Order test4 = Order{4, OrderSide::BUY, 1};
+    book.addOrder(test4);
+
+    // spin
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 }

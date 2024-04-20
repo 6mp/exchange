@@ -26,7 +26,7 @@ public:
     Order() = default;
 
     Order(
-        const OrderId_ty id, const Price price, const Quantity_ty quantity, const OrderSide side, const OrderType type)
+        const OrderId_ty id, const Price price, const Quantity_ty quantity, const OrderSide side, const OrderType type = OrderType::LIMIT)
         : m_price(price)
         , m_initQuantity(quantity)
         , m_remainingQuantity(quantity)

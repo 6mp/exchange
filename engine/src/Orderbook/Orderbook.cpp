@@ -77,13 +77,10 @@ bool Orderbook::processOrder(Order& order, std::deque<Order>& orders) const {
     return order.isFilled();
 }
 
-
 template<typename Comp>
 auto Orderbook::fillShit(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) -> void {
     for (auto it = priceMap.begin(); it != priceMap.end() && !order.isFilled(); ++it) {
         processOrder(order, it->second);
-        if (it->second.empty())
-            priceMap.erase(it);
     }
     if (!order.isFilled()) {
         onOrderKill(order);
@@ -101,7 +98,11 @@ auto Orderbook::fillLimitShit(Order& order, std::map<Price, std::deque<Order>, C
             ++it;
     }
     if (!order.isFilled()) {
-        priceMap[order.getPrice()].push_back(order);
+        if constexpr (std::is_same_v<Comp, std::greater<>>) {
+            m_asks[order.getPrice()].push_back(order);
+        } else if constexpr (std::is_same_v<Comp, std::less<>>) {
+            m_bids[order.getPrice()].push_back(order);
+        }
         onOrderAddedToBook(order);
     }
 }
