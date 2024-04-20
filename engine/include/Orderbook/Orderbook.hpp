@@ -10,14 +10,17 @@
 class Orderbook {
     // callbacks
 
+
+    using callback_order_ty = std::add_const<Order>&;
+
     // order in queue
-    std::function<void(Order&)> onOrderAdd;
+    std::function<void(const Order&)> onOrderQueued;
     // first order is the one that was placed, second is the one that was resting
-    std::function<void(Order&, Order&)> onOrderFill;
+    std::function<void(const Order&, const Order&)> onOrderFill;
     // order that was added to the book
-    std::function<void(Order&)> onOrderAddedToBook;
+    std::function<void(const Order&)> onOrderAddedToBook;
     // order that was killed
-    std::function<void(Order&)> onOrderKill;
+    std::function<void(const Order&)> onOrderKill;
 
     // price levels and order queue
     std::map<Price, std::deque<Order>, std::less<>> m_asks;
@@ -32,14 +35,14 @@ class Orderbook {
 
 public:
     Orderbook(
-        decltype(onOrderAdd) onOrderAdd,
+        decltype(onOrderQueued) onOrderAdd,
         decltype(onOrderFill) onOrderFill,
         decltype(onOrderAddedToBook) onOrderAddedToBook,
         decltype(onOrderKill) onOrderKill);
 
     ~Orderbook();
 
-    auto addOrder(Order& order) -> void;
+    auto addOrder(const Order& order) -> void;
 
     void matchingThread();
 

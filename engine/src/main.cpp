@@ -37,15 +37,23 @@ int main() {
       // responsible for shutting down the server for this call to ever return.
       server->Wait();*/
 
-    auto orderFillCallback = [](Order& placedOrder, Order& restingOrder) {
+    auto orderFillCallback = [](const Order& placedOrder, const Order& restingOrder) {
         std::cout << "filled " << placedOrder.getFilledQuantity() << " \n";
     };
 
-    auto orderAddCallback = [](Order& placedOrder) {
-        std::cout << "placed order with id " << placedOrder.getId() << "\n";
+    auto orderQueudCallback = [](const Order& queuedOrder) {
+        std::cout << "placed order with id " << queuedOrder.getId() << "\n";
     };
 
-    static Orderbook book{orderAddCallback, orderFillCallback};
+    auto orderKillCallback = [](const Order& killedOrder) {
+        std::cout << "killed order with id " << killedOrder.getId() << "\n";
+    };
+
+    auto orderAddToBookCallback = [](const Order& addedOrder) {
+        std::cout << "added order to book with id " << addedOrder.getId() << "\n";
+    };
+
+    static Orderbook book{orderQueudCallback, orderFillCallback, orderAddToBookCallback, orderKillCallback};
 
     std::atexit(+[] { book.requestStop(); });
 

@@ -7,11 +7,11 @@
 #include <mutex>
 
 Orderbook::Orderbook(
-    decltype(onOrderAdd) onOrderAdd,
+    decltype(onOrderQueued) onOrderAdd,
     decltype(onOrderFill) onOrderFill,
     decltype(onOrderAddedToBook) onOrderAddedToBook,
     decltype(onOrderKill) onOrderKill)
-    : onOrderAdd(std::move(onOrderAdd))
+    : onOrderQueued(std::move(onOrderAdd))
     , onOrderFill(std::move(onOrderFill))
     , onOrderAddedToBook(std::move(onOrderAddedToBook))
     , onOrderKill(std::move(onOrderKill))
@@ -19,13 +19,13 @@ Orderbook::Orderbook(
 
 Orderbook::~Orderbook() { requestStop(); }
 
-auto Orderbook::addOrder(Order& order) -> void {
+auto Orderbook::addOrder(const Order& order) -> void {
     {
         std::scoped_lock lock{m_lock};
         m_orders.push(order);
     }
     m_condVar.notify_one();
-    onOrderAdd(order);
+    onOrderQueued(order);
 }
 
 void Orderbook::matchingThread() {
