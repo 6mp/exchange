@@ -20,6 +20,55 @@ message HelloReply {
   string message = 1;
 }
 
-service Orderbook {
+message SubscribeRequest {
+  string symbol = 1;
+}
 
+enum Side {
+  BUY = 0;
+  SELL = 1;
+}
+
+enum Type {
+  LIMIT = 0;
+  MARKET = 1;
+}
+
+enum UpdateType {
+  FILL = 0;
+  KILL = 1;
+  ADD = 2;
+}
+
+//TODO: fix this thing
+message AddOrder {
+  string symbol = 1;
+  Side side = 2;
+  Type type = 3;
+  double price = 4;
+  uint64 size = 5;
+}
+
+message AddOrderResponse {
+  uint64 id = 1;
+}
+
+message OrderbookUpdate {
+  UpdateType type = 1;
+  uint64 id = 2;
+  double price = 3;
+  uint64 size = 4;
+}
+
+message BuildBookRequest {
+  string symbol = 1;
+}
+
+message BuildBookResponse {
+  uint64 id = 1;
+}
+
+service Orderbook {
+  rpc subscribe (SubscribeRequest) returns (stream OrderbookUpdate) {}
+  rpc add (AddOrder) returns (AddOrderResponse) {}
 }
