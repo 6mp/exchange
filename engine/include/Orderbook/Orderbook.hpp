@@ -73,11 +73,13 @@ public:
 
     template<typename Comp>
     auto fillShit(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) -> void {
-
         for (auto it = priceMap.begin(); it != priceMap.end() && !order.isFilled(); ++it) {
             processOrder(order, it->second);
             if (it->second.empty())
                 priceMap.erase(it);
+        }
+        if (!order.isFilled()) {
+            marketOrderFailCallback(order);
         }
     }
 
