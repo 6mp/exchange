@@ -10,8 +10,8 @@
 
 ### Clone repo
 ```
-git clone https://github.com/6mp/orderbook/
-cd orderbook
+git clone https://github.com/6mp/exchange/
+cd exchange
 ```
 
 ### Building and running orderbook server:
