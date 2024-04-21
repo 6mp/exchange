@@ -27,7 +27,6 @@ public:
         : integral(static_cast<std::int64_t>(price))
         , fractional(static_cast<std::uint64_t>((price - integral) * SCALAR)) {}
 
-
     constexpr Price(const std::uint64_t integral, const std::uint64_t fractional)
         : integral(integral)
         , fractional(fractional) {}
@@ -44,8 +43,16 @@ public:
         return fractional <=> rhs.fractional;
     }
 
-    explicit operator std::string() const  {
-        return fmt::format("{}.{}", integral, fractional);
+    explicit operator std::string() const { return fmt::format("{}.{}", integral, fractional); }
+};
+
+template<>
+struct fmt::formatter<Price> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+
+    template<typename FormatContext>
+    auto format(const Price& price, FormatContext& ctx) {
+        return format_to(ctx.out(), "{}.{}", price.getIntegral(), price.getFractional());
     }
 };
 
