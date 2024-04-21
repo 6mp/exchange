@@ -1,8 +1,10 @@
-# C++ limit order book with python visualizer
+# virtual stock exchange
 
 ## Features
+- C++ orderbook and matching engine
+- Python trading interface
 - C++ build is fully automated from fetching grpc/protoc to compiling protobufs
-- Communication between the orderbook and python is done using grpc
+- Communication between the backend and python interface is done using grpc
 
 ## Setup
 
