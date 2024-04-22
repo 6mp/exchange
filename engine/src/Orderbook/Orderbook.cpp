@@ -29,6 +29,14 @@ auto Orderbook::addOrder(const Order& order) -> void {
     m_condVar.notify_one();
 }
 
+auto Orderbook::removeOrder(const Order& order) -> void {
+    {
+        std::scoped_lock lock{m_lock};
+        // check if its in the queue
+
+    }
+}
+
 void Orderbook::matchingThread() {
     while (true) {
 

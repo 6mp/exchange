@@ -57,6 +57,8 @@ public:
 
     auto addOrder(const Order& order) -> void;
 
+    auto removeOrder(const Order& order) -> void;
+
     void matchingThread();
 
     void fillMarketOrder(Order& order);
