@@ -23,17 +23,19 @@ Orderbook::~Orderbook() { requestStop(); }
 auto Orderbook::addOrder(const Order& order) -> void {
     {
         std::scoped_lock lock{m_lock};
-        m_orders.push(order);
+        m_orders.push_back(order);
     }
     onOrderQueued(order);
     m_condVar.notify_one();
 }
 
 auto Orderbook::removeOrder(const Order& order) -> void {
-    {
-        std::scoped_lock lock{m_lock};
-        // check if its in the queue
+    std::scoped_lock lock{m_lock};
 
+    if (const auto erasedCount =
+            std::erase_if(m_orders, [&order](const Order& o) { return o.getId() == order.getId(); });
+        erasedCount == 1) {
+        onOrderDeleted(order);
     }
 }
 
@@ -48,7 +50,9 @@ void Orderbook::matchingThread() {
                 return;
 
             order = m_orders.front();
-            m_orders.pop();
+
+            // delete item at front
+            m_orders.erase(m_orders.begin());
         }
 
         switch (order.getType()) {
@@ -98,8 +102,8 @@ auto Orderbook::matchMarketOrder(Order& order, std::map<Price, std::deque<Order>
 
 template<typename Comp>
 void Orderbook::matchLimitOrder(Order& order, std::map<Price, std::deque<Order>, Comp>& priceMap) {
-    if constexpr (std::is_same_v<Comp, std::less<>>) {       // Handling buy orders
-         // Finding the lowest price at or below the order price
+    if constexpr (std::is_same_v<Comp, std::less<>>) {    // Handling buy orders
+                                                          // Finding the lowest price at or below the order price
         auto it = priceMap.lower_bound(order.getPrice());
 
         if (it != priceMap.end() && it->first > order.getPrice()) {

@@ -22,6 +22,8 @@ class Orderbook {
     std::function<void(const Order&)> onOrderAddedToBook;
     // order that was killed
     std::function<void(const Order&)> onOrderKill;
+    // order that was deleted
+    std::function<void(const Order&)> onOrderDeleted;
 
     // price levels and order queue
 
@@ -38,7 +40,7 @@ class Orderbook {
      */
     std::map<Price, std::deque<Order>, std::less<>> m_asks;
     std::map<Price, std::deque<Order>, std::greater<>> m_bids;
-    std::queue<Order> m_orders;
+    std::vector<Order> m_orders;
 
     // multithreading
     std::mutex m_lock;
