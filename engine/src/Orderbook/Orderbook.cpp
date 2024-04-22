@@ -32,10 +32,27 @@ auto Orderbook::addOrder(const Order& order) -> void {
 auto Orderbook::removeOrder(const Order& order) -> void {
     std::scoped_lock lock{m_lock};
 
-    if (const auto erasedCount =
-            std::erase_if(m_orders, [&order](const Order& o) { return o.getId() == order.getId(); });
-        erasedCount == 1) {
+    auto orderMatchingPredicate = [&order](const Order& o) { return o.getId() == order.getId(); };
+
+    if (const auto erasedCount = std::erase_if(m_orders, orderMatchingPredicate); erasedCount == 1) {
         onOrderDeleted(order);
+        return;
+    }
+
+    // if its not in the vector then its in the order book
+    if (order.getSide() == OrderSide::BUY) {
+        if (const auto it = m_bids.find(order.getPrice()); it != m_bids.end()) {
+            if (const auto erasedCount = std::erase_if(it->second, orderMatchingPredicate); erasedCount == 1) {
+                onOrderDeleted(order);
+                return;
+            }
+        }
+    } else if (order.getSide() == OrderSide::SELL) {
+        if (const auto it = m_asks.find(order.getPrice()); it != m_asks.end()) {
+            if (const auto erasedCount = std::erase_if(it->second, orderMatchingPredicate); erasedCount == 1) {
+                onOrderDeleted(order);
+            }
+        }
     }
 }
 

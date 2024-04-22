@@ -53,6 +53,10 @@ int main() {
        fmt::print("ADDED: {}\n", addedOrder);
     };
 
+    auto orderDelete = [](const Order& deletedOrder) {
+
+    };
+
     static Orderbook book{orderQueudCallback, orderFillCallback, orderAddToBookCallback, orderKillCallback};
 
     std::atexit(+[] { book.requestStop(); });
