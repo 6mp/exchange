@@ -12,8 +12,6 @@
 
 class Orderbook {
     // callbacks
-    using callback_order_ty = std::add_const<Order>&;
-
     // order in queue
     std::function<void(const Order&)> onOrderQueued;
     // first order is the one that was placed, second is the one that was resting
