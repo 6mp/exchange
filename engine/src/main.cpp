@@ -74,7 +74,7 @@ int main() {
     const auto test3 = Order{3, 12.0, 1, OrderSide::BUY};
     book.addOrder(test3);
 
-    // fill it
+    // market order partial fill
     const auto test5 = Order{5, OrderSide::SELL, 6};
     book.addOrder(test5);
 
